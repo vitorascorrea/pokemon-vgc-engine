@@ -1,4 +1,4 @@
-from competitor.example.Example import Example
+from competitor.random.Random import Random
 from framework.ecosystem import CompetitorManager
 from framework.ecosystem.LeagueEcosystem import LeagueEcosystem
 from framework.util.PkmRosterGenerators import RandomPkmRosterGenerator
