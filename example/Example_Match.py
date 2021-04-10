@@ -1,11 +1,12 @@
 from competitor.greedy.Greedy import Greedy
-from framework.competition.CompetitionObjects import Match, ExampleCompetitor, GUIExampleCompetitor
+from competitor.random.Random import Random
+from framework.competition.CompetitionObjects import Match, GUIExampleCompetitor
 from framework.util.PkmTeamGenerators import RandomGenerator
 
 def main():
     rg = RandomGenerator()
     c0 = Greedy(team=rg.get_team(), name="Player0")
-    c1 = ExampleCompetitor(rg.get_team(), name="Player1")
+    c1 = Random(team=rg.get_team(), name="Player1")
     m = Match(c0, c1, debug=True)
     m.run()
 

@@ -6,7 +6,7 @@ from framework.behaviour.DataAggregators import NullDataAggregator
 from framework.competition.CompetitionObjects import Competitor
 
 
-class ExampleBattlePolicy(BattlePolicy):
+class RandomBattlePolicy(BattlePolicy):
 
     def requires_encode(self) -> bool:
         return False
@@ -18,11 +18,11 @@ class ExampleBattlePolicy(BattlePolicy):
         return sample(range(4 + 3), 1)[0]
 
 
-class Example(Competitor):
+class Random(Competitor):
 
-    def __init__(self, name: str = "Example", team: PkmFullTeam = None):
+    def __init__(self, name: str = "Random", team: PkmFullTeam = None):
         self._name = name
-        self._battle_policy = ExampleBattlePolicy()
+        self._battle_policy = RandomBattlePolicy()
         self._team = team
 
     @property
