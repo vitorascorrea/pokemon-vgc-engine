@@ -168,8 +168,8 @@ class Match:
                     env.render()
             t = False
             self.wins[env.winner] += 1
-            if self.wins[env.winner] > self.n_games // 2:
-                break
+            # if self.wins[env.winner] > self.n_games // 2:
+            #     break
         if self.debug:
             print('MATCH RESULTS ' + str(self.wins) + '\n')
         a0.close()

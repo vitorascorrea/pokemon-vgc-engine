@@ -5,9 +5,9 @@ from framework.util.PkmTeamGenerators import RandomGenerator
 
 def main():
     rg = RandomGenerator()
-    c0 = Greedy(team=rg.get_team(), name="Player0")
-    c1 = Random(team=rg.get_team(), name="Player1")
-    m = Match(c0, c1, debug=True)
+    c0 = Greedy(team=rg.get_team())
+    c1 = Greedy(team=rg.get_team())
+    m = Match(c0, c1, debug=True, n_games=10)
     m.run()
 
 

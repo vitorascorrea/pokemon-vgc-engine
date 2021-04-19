@@ -43,9 +43,7 @@ class GreedyBattlePolicy(BattlePolicy):
         # get best move
         damage: List[float] = []
         for move in my_active_moves:
-            damage.append(
-                estimate_damage(move.type, my_active_type, move.power, opp_active_type, my_attack_stage,
-                                opp_defense_stage, weather))
+            damage.append(estimate_damage(move.type, my_active_type, move.power, opp_active_type, my_attack_stage, opp_defense_stage, weather))
         move_id = int(np.argmax(damage))
 
         # switch decision
