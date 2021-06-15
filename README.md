@@ -1,3 +1,5 @@
+# Forked from https://gitlab.com/DracoStriker/pokemon-vgc-engine
+
 # Pokémon VGC AI Framework
 
 (Legacy repository: https://gitlab.com/DracoStriker/simplified-pokemon-environment)
@@ -18,7 +20,7 @@ vgc as password. A SSH server is installed and run on the container boot.
 
 ## Project Organization
 
-In the competitor module you can store your developed agents to be used as plugins. There is a 
+In the competitor module you can store your developed agents to be used as plugins. There is a
 small provided example.
 
 In the example module can be found multiple how to use the framework examples  to train or test
