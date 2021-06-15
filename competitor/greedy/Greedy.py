@@ -1,4 +1,5 @@
 import numpy as np
+import random
 
 from typing import List
 from random import sample
@@ -12,6 +13,7 @@ from framework.behaviour.BattlePolicies import estimate_damage
 from framework.behaviour.DataAggregators import NullDataAggregator
 from framework.competition.CompetitionObjects import Competitor
 
+PK_TEAM_ACTIONS = DEFAULT_PKM_N_MOVES + DEFAULT_PARTY_SIZE
 
 class GreedyBattlePolicy(BattlePolicy):
 
@@ -21,7 +23,12 @@ class GreedyBattlePolicy(BattlePolicy):
     def close(self):
         pass
 
-    def get_action(self, g: GameStateView) -> int:
+    def get_action(self, g: GameStateView, e_greedy=0) -> int:
+        random_value = random.uniform(0, 1)
+
+        if random_value < e_greedy:
+            return random.choice(range(PK_TEAM_ACTIONS))
+
         # check weather condition
         weather = g.weather_condition
 
