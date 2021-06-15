@@ -93,7 +93,7 @@ class GUIBattlePolicy(BattlePolicy):
         self.party = [
             [sg.ReadFormButton('Switch ' + str(i), bind_return_key=True),
              sg.Text('                                      ')] for i in range(n_party)]
-        layout = [[self.weather], [self.opponent], [self.active], self.moves] + self.party
+        layout = [[self.weather], [self.opponent], [self.active]] + [self.moves[:2], self.moves[2:]] + self.party
         self.window = sg.Window('Pokemon Battle Engine', layout)
         self.window.Finalize()
 
@@ -150,7 +150,7 @@ class GUIBattlePolicy(BattlePolicy):
         self.active.Update(active_text)
 
         # party
-        my_party = [my_team.get_party_pkm_view(0), my_team.get_party_pkm_view(1)]
+        my_party = [my_team.get_party_pkm_view(i) for i in range(DEFAULT_PARTY_SIZE)]
         for i, pkm in enumerate(my_party):
             party_type = pkm.type
             party_hp = pkm.hp
