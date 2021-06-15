@@ -22,12 +22,15 @@ from competitor.random.Random import RandomBattlePolicy
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 NUM_EPISODES = 100000
 SAVE_EPISODE = 10000
-BATCH_SIZE = 128
-GAMMA = 0.999
+TEST_EPISODE = 1000
+MEMORY = 1000000
+BATCH_SIZE = 1000
+GAMMA = 0.5
 EPS_START = 0.9
 EPS_END = 0.05
-EPS_DECAY = 200
+EPS_DECAY = 20000
 TARGET_UPDATE = 10
+RANDOM_TEAM_UPDATE = 5001
 
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
@@ -55,7 +58,7 @@ class ReplayMemory(object):
 
 
 class DQN(nn.Module):
-
+    # inspired from https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
     def __init__(self, n_actions, target=False):
         super(DQN, self).__init__()
         self.flatten = nn.Flatten()
@@ -79,8 +82,6 @@ class DQN(nn.Module):
 
 
 def optimize_model(optimizer, memory, policy_net, target_net):
-    if len(memory) < BATCH_SIZE:
-        return
     transitions = memory.sample(BATCH_SIZE)
     # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
     # detailed explanation). This converts batch-array of Transitions
@@ -122,15 +123,13 @@ def optimize_model(optimizer, memory, policy_net, target_net):
     return loss.item()
 
 
-steps_done = 0
-
-
-def select_action(state, policy_net, n_actions):
-    global steps_done
+def select_action(state, policy_net, n_actions, episode=None):
     sample = random.random()
-    eps_threshold = EPS_END + (EPS_START - EPS_END) * \
-        math.exp(-1. * steps_done / EPS_DECAY)
-    steps_done += 1
+    eps_threshold = 0
+    if episode != None:
+        # eps_threshold = EPS_END + (EPS_START - EPS_END) * (1 - (episode / NUM_EPISODES))
+        eps_threshold = EPS_END + (EPS_START - EPS_END) * math.exp(-1 * episode / EPS_DECAY)
+
     if sample > eps_threshold:
         with torch.no_grad():
             action_values = policy_net(state)
@@ -139,7 +138,7 @@ def select_action(state, policy_net, n_actions):
         return torch.tensor([[random.randrange(n_actions)]], device=DEVICE, dtype=torch.long)
 
 
-def train(team0=None, team1=None, opponent_policy=GreedyBattlePolicy(), random_teams=False):
+def train(team0=None, team1=None, opponent_policy=GreedyBattlePolicy(), self_training=False, store_opponent_memory=False, file_name='nn', start_from_episode=0, random_teams=False):
     if random_teams or not team0 or not team1:
         team0, team1 = build_random_teams()
 
@@ -147,33 +146,71 @@ def train(team0=None, team1=None, opponent_policy=GreedyBattlePolicy(), random_t
     n_actions = env.action_space.n
 
     policy_net = DQN(n_actions=n_actions).to(DEVICE)
+
+    if start_from_episode > 0:
+        policy_net.load_state_dict(torch.load('./competitor/DQN/saves/{}_{}.pth'.format(file_name, start_from_episode)))
+
     target_net = DQN(n_actions=n_actions, target=True).to(DEVICE)
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()
 
-    optimizer = optim.RMSprop(policy_net.parameters())
-    memory = ReplayMemory(10000)
-    loss = None
+    # optimizer = optim.RMSprop(policy_net.parameters())
+    optimizer = optim.Adam(policy_net.parameters(), lr=0.00025)
+    memory = ReplayMemory(MEMORY)
+    current_loss = 0
+    total_loss = 0
+    team = 0
 
-    for i_episode in range(NUM_EPISODES):
-        if i_episode > 0 and i_episode % SAVE_EPISODE == 0:
-            print("Current episode: {}, Loss: {}".format(i_episode, loss))
-            torch.save(policy_net.state_dict(), './competitor/DQN/saves/policy_nn_episodes_{}.pth'.format(i_episode))
+    for i_episode in range(start_from_episode, NUM_EPISODES):
+        if i_episode > start_from_episode and i_episode % SAVE_EPISODE == 0:
+            torch.save(policy_net.state_dict(), './competitor/DQN/saves/{}_{}.pth'.format(file_name, i_episode))
+
+        if i_episode > start_from_episode and i_episode % TEST_EPISODE == 0:
+            winners = test_batch(opponent_policy=opponent_policy, player_nn=policy_net)
+            print('Episode: {} Team: {} Loss: {}'.format(i_episode, team, current_loss))
+            print(winners)
+            policy_net.train()
+
         if i_episode > 0 and i_episode % TARGET_UPDATE == 0:
             target_net.load_state_dict(policy_net.state_dict())
+            target_net.eval()
+
+        if (random_teams or not team0 or not team1) and i_episode % RANDOM_TEAM_UPDATE == 0:
+            team0, team1 = build_random_teams()
+            env = PkmBattleEnv(debug=True, teams=[team0, team1])
+            team += 1
 
         previous_state = None
         state = env.reset()
         state_view = env.game_state_view
 
         done = False
+        turns = 0
+
         while not done:
+            turns += 1
+            if turns > 1000:
+                break
+
             player_action = select_action(
                 state=torch.as_tensor([state[0]]),
                 policy_net=policy_net,
-                n_actions=n_actions
+                n_actions=n_actions,
+                episode=i_episode
             ).item()
-            opponent_action = opponent_policy.get_action(state_view[1])
+
+            opponent_action = None
+
+            if self_training:
+                opponent_action = select_action(
+                    state=torch.as_tensor([state[1]]),
+                    policy_net=policy_net,
+                    n_actions=n_actions,
+                    episode=i_episode
+                ).item()
+            else:
+                opponent_action = opponent_policy.get_action(state_view[1])
+
             action = [player_action, opponent_action]
 
             previous_state = state
@@ -188,14 +225,24 @@ def train(team0=None, team1=None, opponent_policy=GreedyBattlePolicy(), random_t
                 torch.as_tensor([reward[0]])
             )
 
-            # Perform one step of the optimization (on the policy network)
-            loss = optimize_model(optimizer=optimizer, memory=memory, policy_net=policy_net, target_net=target_net)
+            if store_opponent_memory:
+                memory.push(
+                    torch.as_tensor([previous_state[1]]),
+                    torch.as_tensor([[opponent_action]]),
+                    torch.as_tensor([state[1]]),
+                    torch.as_tensor([reward[1]])
+                )
 
-    torch.save(policy_net.state_dict(), './competitor/DQN/saves/policy_nn_episodes_final.pth')
+            # Perform one step of the optimization (on the policy network)
+            if len(memory) > BATCH_SIZE:
+                total_loss += optimize_model(optimizer=optimizer, memory=memory, policy_net=policy_net, target_net=target_net)
+                current_loss = total_loss / i_episode
+
+    torch.save(policy_net.state_dict(), './competitor/DQN/saves/{}_final.pth'.format(file_name))
     return policy_net, target_net
 
 
-def test(team0=None, team1=None, opponent_policy=GreedyBattlePolicy(), random_teams=False):
+def test(team0=None, team1=None, opponent_policy=GreedyBattlePolicy(), random_teams=False, file_name='nn_final', player_nn=None):
     if random_teams or not team0 or not team1:
         team0, team1 = build_random_teams()
 
@@ -205,13 +252,21 @@ def test(team0=None, team1=None, opponent_policy=GreedyBattlePolicy(), random_te
     state = env.reset()
     state_view = env.game_state_view
 
-    policy_net = DQN(n_actions=n_actions).to(DEVICE)
-    policy_net.load_state_dict(torch.load('./competitor/DQN/saves/policy_nn_episodes_final.pth'))
+    policy_net = player_nn
+
+    if not player_nn:
+        policy_net = DQN(n_actions=n_actions).to(DEVICE)
+        policy_net.load_state_dict(torch.load('./competitor/DQN/saves/{}.pth'.format(file_name)))
+
     policy_net.eval()
 
-    env.render()
+    # env.render()
     done = False
+    turn = 0
     while not done:
+        turn += 1
+        if turn > 1000:
+            break
         player_action = select_action(
             state=torch.as_tensor([state[0]]),
             policy_net=policy_net,
@@ -220,9 +275,23 @@ def test(team0=None, team1=None, opponent_policy=GreedyBattlePolicy(), random_te
         opponent_action = opponent_policy.get_action(state_view[1])
         action = [player_action, opponent_action]
         state, reward, done, state_view = env.step(action)
-        env.render()
+        # env.render()
 
     return env.winner
+
+
+def test_batch(num_tests=100, team0=None, team1=None, random_teams=False, opponent_policy=GreedyBattlePolicy(), file_name='nn_final', player_nn=None):
+    winners = {
+        -1: 0,
+        0: 0,
+        1: 0
+    }
+
+    for i in range(num_tests):
+        winner = test(team0=team0, team1=team1, random_teams=random_teams, opponent_policy=opponent_policy, file_name=file_name, player_nn=player_nn)
+        winners[winner] += 1
+
+    return winners
 
 
 def build_random_teams():
@@ -234,18 +303,10 @@ def build_random_teams():
 
 
 if __name__ == "__main__":
-    policy = RandomBattlePolicy()
-    winners = {
-        0: 0,
-        1: 0
-    }
+    random_policy = RandomBattlePolicy()
+    greedy_policy = GreedyBattlePolicy()
+    team0, team1 = build_random_teams()
 
-    for i in range(10):
-        team0, team1 = build_random_teams()
-        # policy_net, target_net = train(random_teams=True, opponent_policy=policy)
-        winner = test(team0=team0, team1=team1, opponent_policy=policy)
-        winners[winner] += 1
-
+    policy_net, target_net = train(opponent_policy=greedy_policy, random_teams=True, file_name='greedy_supervised_bla', store_opponent_memory=True)
+    winners = test_batch(opponent_policy=greedy_policy, player_nn=policy_net, num_tests=1000)
     print(winners)
-
-

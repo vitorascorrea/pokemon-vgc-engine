@@ -5,7 +5,7 @@ from framework.process.BattleEngine import PkmBattleEnv
 
 
 def main():
-    file_name = './saves/reward_1_random_teams_simple.pth'
+    file_name = './competitor/DQN/saves/reward_1_random_teams_simple.pth'
     team0, team1 = build_random_teams(2)
     t = False
     a0 = GUIBattlePolicy()
