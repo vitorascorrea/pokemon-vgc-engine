@@ -1,11 +1,10 @@
 import numpy as np
 
 from typing import List
-from random import sample
 
 from framework.DataObjects import MetaData, PkmFullTeam, GameStateView
-from framework.DataConstants import TYPE_CHART_MULTIPLIER, DEFAULT_PKM_N_MOVES, DEFAULT_PARTY_SIZE
-from framework.DataTypes import PkmStat, PkmType, WeatherCondition, PkmStatus
+from framework.DataConstants import TYPE_CHART_MULTIPLIER, DEFAULT_PKM_N_MOVES
+from framework.DataTypes import PkmStat
 
 from framework.behaviour import BattlePolicy
 from framework.behaviour.BattlePolicies import estimate_damage

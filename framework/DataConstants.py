@@ -32,6 +32,9 @@ STATE_DAMAGE = MAX_HIT_POINTS / 8.
 SPIKES_2 = MAX_HIT_POINTS / 6.
 SPIKES_3 = MAX_HIT_POINTS / 4.
 
+# Damages
+MAX_POSSIBLE_DAMAGE = 2 * 1.5 * 1.5 * MOVE_POWER_MAX # type * stab * weather * MOVE_POWER_MAX
+
 # Pkm type chart
 TYPE_CHART_MULTIPLIER = (
     (1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., .5, .0, 1., 1., .5, 1.),  # NORMAL

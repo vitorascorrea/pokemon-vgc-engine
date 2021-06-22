@@ -1,11 +1,11 @@
-from competitor.DQN.Tester import build_random_teams
-from competitor.DQN.QValueCompetitor import QValueBattlePolicy
+from RLStudies.Tester import build_random_teams
+from RLStudies.QValueCompetitor import QValueBattlePolicy
 from framework.behaviour.BattlePolicies import GUIBattlePolicy, RandomBattlePolicy
 from framework.process.BattleEngine import PkmBattleEnv
 
 
 def main():
-    file_name = './competitor/DQN/saves/reward_1_random_teams_simple.pth'
+    file_name = './RLStudies/saves/reward_1_8_teams_simple.pth'
     team0, team1 = build_random_teams(2)
     t = False
     a0 = GUIBattlePolicy()

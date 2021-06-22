@@ -7,8 +7,8 @@ from framework.behaviour import BattlePolicy
 from framework.behaviour.DataAggregators import NullDataAggregator
 from framework.competition.CompetitionObjects import Competitor
 
-from competitor.DQN.QValueNN import QValueNN
-from competitor.DQN.QValueHelpers import select_player_action_from_q_value
+from RLStudies.QValueNN import QValueNN
+from RLStudies.Utils import build_state_representation, select_player_action_from_q_value
 
 
 class QValueBattlePolicy(BattlePolicy):
@@ -26,7 +26,7 @@ class QValueBattlePolicy(BattlePolicy):
         pass
 
     def get_action(self, g: GameStateView) -> int:
-        return select_player_action_from_q_value(self, g, self.q_value_nn)
+        return select_player_action_from_q_value(build_state_representation(g), self.q_value_nn)
 
 class QValueCompetitor(Competitor):
 
