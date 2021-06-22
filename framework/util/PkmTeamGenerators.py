@@ -27,18 +27,22 @@ class RandomGenerator(PkmTeamGenerator):
 
     def get_team(self, t_id: int = 0) -> PkmFullTeam:
         team: List[Pkm] = []
-        for i in range(self.party_size + 1):
-            p_type: PkmType = random.choice(LIST_OF_TYPES)
-            max_hp: float = round(random.random() * DELTA_HIT_POINTS + MIN_HIT_POINTS)
-            moves: List[PkmMove] = []
-            for _ in range(DEFAULT_PKM_N_MOVES):
-                m_type: PkmType = random.choice(LIST_OF_TYPES)
-                m_power: float = round(random.random() * DELTA_MOVE_POWER + MOVE_POWER_MIN)
-                moves.append(PkmMove(power=m_power, acc=1., move_type=m_type))
-            moves[0].type = p_type
-            random.shuffle(moves)
-            team.append(Pkm(p_type, max_hp, move0=moves[0], move1=moves[1], move2=moves[2], move3=moves[3]))
+        for _ in range(self.party_size + 1):
+            team.append(RandomGenerator.generate_pokemon())
         return PkmFullTeam(team)
+
+    @staticmethod
+    def generate_pokemon():
+        p_type: PkmType = random.choice(LIST_OF_TYPES)
+        max_hp: float = round(random.random() * DELTA_HIT_POINTS + MIN_HIT_POINTS)
+        moves: List[PkmMove] = []
+        for _ in range(DEFAULT_PKM_N_MOVES):
+            m_type: PkmType = random.choice(LIST_OF_TYPES)
+            m_power: float = round(random.random() * DELTA_MOVE_POWER + MOVE_POWER_MIN)
+            moves.append(PkmMove(power=m_power, acc=1., move_type=m_type))
+        moves[0].type = p_type
+        random.shuffle(moves)
+        return Pkm(p_type, max_hp, move0=moves[0], move1=moves[1], move2=moves[2], move3=moves[3])
 
 
 class RandomGeneratorRoster:
