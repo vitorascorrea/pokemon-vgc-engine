@@ -213,6 +213,8 @@ def run_matches(custom_action_fn=None, custom_action_name="Q NN", teams=[], rand
     else:
         matches_teams = teams
 
+    matches_history = []
+
     random_policy = RandomBattlePolicy()
     greedy_policy = GreedyBattlePolicy()
 
@@ -268,6 +270,8 @@ def run_matches(custom_action_fn=None, custom_action_name="Q NN", teams=[], rand
             team0=team1,
             team1=team0
         )
-        print('{} {} {}'.format(match['message'], str(winners_1), str(winners_2)))
+        message = '{} {} {}'.format(match['message'], str(winners_1), str(winners_2))
+        print(message)
+        matches_history.append(message)
 
-    return matches
+    return matches, matches_history

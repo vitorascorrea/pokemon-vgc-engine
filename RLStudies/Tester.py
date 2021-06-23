@@ -5,12 +5,12 @@ from framework.util.PkmTeamGenerators import RandomGenerator
 from framework.DataConstants import DEFAULT_TEAM_SIZE, MAX_TEAM_SIZE
 
 
-def build_random_teams(num_of_teams=2):
+def build_random_teams(num_of_teams=2, team_size=DEFAULT_TEAM_SIZE):
     rg = RandomGenerator()
     teams = []
 
     for _ in range(num_of_teams):
-        team = rg.get_team().get_battle_team(random.sample(range(MAX_TEAM_SIZE), DEFAULT_TEAM_SIZE))
+        team = rg.get_team().get_battle_team(random.sample(range(MAX_TEAM_SIZE), team_size))
         teams.append(team)
 
     return teams

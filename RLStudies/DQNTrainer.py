@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
+from collections import namedtuple
 from framework.behaviour.BattlePolicies import RandomBattlePolicy
 from competitor.greedy.Greedy import GreedyBattlePolicy
 from framework.DataConstants import DEFAULT_N_ACTIONS, DEFAULT_PARTY_SIZE, DEFAULT_TEAM_SIZE, MAX_HIT_POINTS
@@ -18,7 +19,7 @@ from framework.process.BattleEngine import PkmBattleEnv
 
 torch.manual_seed(0)
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-NUM_EPISODES = 100000
+NUM_EPISODES = 10000
 SAVE_EPISODE = 10000
 TEST_EPISODE = 500
 MEMORY = 10000
@@ -27,7 +28,7 @@ GAMMA = 0.5
 EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 20000
-TARGET_UPDATE = 1
+TARGET_UPDATE = 10
 GREEDY_POLICY = GreedyBattlePolicy()
 RANDOM_POLICY = RandomBattlePolicy()
 
@@ -54,7 +55,7 @@ class ReplayMemory(object):
 
 class Net(nn.Module):
     # inspired from https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
-    def __init__(self, input_size=9, output_size=DEFAULT_N_ACTIONS, target=False):
+    def __init__(self, input_size=7, output_size=DEFAULT_N_ACTIONS, target=False):
         super(Net, self).__init__()
         self.flatten = nn.Flatten()
         self.nn = nn.Sequential(
@@ -78,7 +79,7 @@ class Net(nn.Module):
 
 
 class DQNTrainer():
-    def __init__(self, policy_net=None, e_greedy_decay=None, double_dqn=False, random_teams=True, fixed_teams=None) -> None:
+    def __init__(self, policy_net=None, e_greedy_decay=None, double_dqn=False, random_teams=True, fixed_teams=None, clip_reward=True) -> None:
         self.policy_net = policy_net if policy_net else Net()
         self.target_net = Net()
 
@@ -88,7 +89,7 @@ class DQNTrainer():
 
         self.double_dqn = double_dqn
 
-        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.00025)
+        self.optimizer = optim.Adam(self.policy_net.parameters())
         self.loss_fn = F.smooth_l1_loss
         self.memory = ReplayMemory(MEMORY)
 
@@ -101,6 +102,7 @@ class DQNTrainer():
         self.fixed_teams = fixed_teams
 
         self.e_greedy_decay = e_greedy_decay
+        self.clip_reward = clip_reward
 
     def select_action(self, state, episode=0, use_nn_value=False):
         sample = random.random()
@@ -131,6 +133,8 @@ class DQNTrainer():
             return lambda _, state_view: RANDOM_POLICY.get_action(state_view)
 
     def train(self, file_name="DQN"):
+        self.train_history = []
+
         for i_episode in range(NUM_EPISODES):
             team0, team1 = self.get_teams()
             env = PkmBattleEnv(debug=True, teams=[team0, team1])
@@ -153,9 +157,10 @@ class DQNTrainer():
 
             if i_episode > 0 and i_episode % TEST_EPISODE == 0:
                 print("Episode {} Current loss: {}".format(i_episode, self.current_loss))
-                run_matches(custom_action_fn=self.select_action_wrapper(use_nn_value=True), custom_action_name="DQN", random_teams=self.random_teams, teams=[team0, team1])
+                _, matches_history = run_matches(custom_action_fn=self.select_action_wrapper(use_nn_value=True), custom_action_name="DQN", random_teams=self.random_teams, teams=[team0, team1])
+                self.train_history.append((i_episode, self.current_loss, matches_history))
 
-        torch.save(self.policy_net.state_dict(), './competitor/DQN/saves/{}_final.pth'.format(file_name))
+        torch.save(self.policy_net.state_dict(), './RLStudies/saves/{}_final.pth'.format(file_name))
 
     def get_teams(self):
         if self.random_teams or not self.fixed_teams:
@@ -261,10 +266,13 @@ class DQNTrainer():
         elif winner == False:
             current_value -= victory_value
 
-        to_return = current_value - self.last_reward_value
-        self.last_reward_value = current_value
+        if self.clip_reward:
+            return 1 if current_value > 0 else -1
+        else:
+            to_return = current_value - self.last_reward_value
+            self.last_reward_value = current_value
 
-        return to_return
+            return to_return
 
 
 class EGreedyDecay():
@@ -279,16 +287,32 @@ class EGreedyDecay():
 
 if __name__ == "__main__":
     policy_net = Net()
-    teams = build_random_teams(2)
-    with open('./competitor/DQN/teams/random_fixed_teams.pickle', 'wb') as handle:
+    teams = build_random_teams(2, 2)
+    with open('./RLStudies/teams/random_2_fixed_teams.pickle', 'wb') as handle:
         pickle.dump(teams, handle)
 
-    dqn_agent = DQNTrainer(
-        policy_net=policy_net,
-        double_dqn=True,
-        e_greedy_decay=EGreedyDecay.epsilon_linear_decay,
-        random_teams=False,
-        fixed_teams=teams
-    )
-    dqn_agent.train()
-    run_matches(custom_action_fn=dqn_agent.select_action_wrapper(), custom_action_name="DQN", random_teams=False, teams=teams)
+
+    Test = namedtuple('Test', ('name', 'double_dqn', 'clip_reward', 'history'))
+
+    tests = [
+        Test('DQN_no_clip', False, False, []),
+        Test('DQN_with_clip', False, True, []),
+        Test('DDQN_no_clip', True, False, []),
+        Test('DDQN_with_clip', True, True, []),
+    ]
+
+    for test in tests:
+        print(test.name)
+        print('=================')
+        dqn_agent = DQNTrainer(
+            policy_net=policy_net,
+            double_dqn=test.double_dqn,
+            e_greedy_decay=EGreedyDecay.epsilon_linear_decay,
+            random_teams=False,
+            fixed_teams=teams,
+            clip_reward=test.clip_reward
+        )
+        dqn_agent.train(file_name=test.name)
+        test.history.append(dqn_agent.train_history)
+        with open('./RLStudies/results/{}.pickle'.format(test.name), 'wb') as handle:
+            pickle.dump(test, handle)

@@ -3,7 +3,7 @@ import numpy as np
 from typing import List
 
 from framework.DataObjects import MetaData, PkmFullTeam, GameStateView
-from framework.DataConstants import TYPE_CHART_MULTIPLIER, DEFAULT_PKM_N_MOVES
+from framework.DataConstants import DEFAULT_PARTY_SIZE, TYPE_CHART_MULTIPLIER, DEFAULT_PKM_N_MOVES
 from framework.DataTypes import PkmStat
 
 from framework.behaviour import BattlePolicy
@@ -28,7 +28,7 @@ class DQNBattlePolicy(BattlePolicy):
         my_team = g.get_team_view(0)
         my_active = my_team.active_pkm_view
         my_active_type = my_active.type
-        my_party = [my_team.get_party_pkm_view(0), my_team.get_party_pkm_view(1)]
+        my_party = [my_team.get_party_pkm_view(i) for i in range(DEFAULT_PARTY_SIZE)]
         my_active_moves = [my_active.get_move_view(i) for i in range(DEFAULT_PKM_N_MOVES)]
         my_attack_stage = my_team.get_stage(PkmStat.ATTACK)
 

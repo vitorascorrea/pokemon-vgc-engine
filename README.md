@@ -1,5 +1,7 @@
 # Forked from https://gitlab.com/DracoStriker/pokemon-vgc-engine
 
+To run the experiments for the SIN5021 class, go to RLStudies folder and run DQNTrainer.py and PlanningAlgorithms.py
+
 # Pokémon VGC AI Framework
 
 (Legacy repository: https://gitlab.com/DracoStriker/simplified-pokemon-environment)

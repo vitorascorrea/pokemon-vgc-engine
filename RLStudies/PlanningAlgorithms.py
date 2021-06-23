@@ -1,6 +1,5 @@
 import copy
 
-
 class Pokemon():
     def __init__(self, hp=5, moves=[]) -> None:
         self.hp = hp
@@ -167,11 +166,11 @@ def build_possible_transitions(state, move, moves, opponent):
             # player always goes first
             # possible transitions:
             if not player_can_be_killed and not opp_can_be_killed:
-                # - player hit, doesnt kill, opp hit, doesnt kill
+                # - player hit, doesn't kill, opp hit, doesn't kill
                 transitions.append([multiplier * move.move_accuracy * opp_move.move_accuracy, 0, '{}{}'.format(player_hp, opp_hp)])
-                # - player hit, doesnt kill, opp miss, doesnt kill
+                # - player hit, doesn't kill, opp miss, doesn't kill
                 transitions.append([multiplier * move.move_accuracy * (1 - opp_move.move_accuracy), 0, '{}{}'.format(state[0], opp_hp)])
-                # - player miss, opp hit, doesnt kill
+                # - player miss, opp hit, doesn't kill
                 transitions.append([multiplier * (1 - move.move_accuracy) * opp_move.move_accuracy, 0, '{}{}'.format(player_hp, state[1])])
                 # - player miss, opp miss
                 transitions.append([multiplier * (1 - move.move_accuracy) * (1 - opp_move.move_accuracy), 0, state])
@@ -181,10 +180,10 @@ def build_possible_transitions(state, move, moves, opponent):
                 # - player miss, opp miss
                 transitions.append([multiplier * (1 - move.move_accuracy) * (1 - opp_move.move_accuracy), 0, state])
                 if not player_can_be_killed:
-                    # - player miss, opp hit, doesnt kill
+                    # - player miss, opp hit, doesn't kill
                     transitions.append([multiplier * (1 - move.move_accuracy) * opp_move.move_accuracy, 0, '{}{}'.format(player_hp, state[1])])
             elif player_can_be_killed:
-                # - player hit, doesnt kill, opp hit, kill
+                # - player hit, doesn't kill, opp hit, kill
                 transitions.append([multiplier * move.move_accuracy * opp_move.move_accuracy, -1, '0{}'.format(opp_hp)])
                 # - player miss, opp hit, kill
                 transitions.append([multiplier * (1 - move.move_accuracy) * opp_move.move_accuracy, -1, '0{}'.format(state[1])])
