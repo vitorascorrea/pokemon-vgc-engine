@@ -13,9 +13,17 @@ torch.manual_seed(0)
 
 GAMMA = 0.999
 PK_TEAM_ACTIONS = DEFAULT_PKM_N_MOVES + DEFAULT_PARTY_SIZE
-
 TransitionIterator = namedtuple('TransitionIterator',
                                 ('state', 'action', 'next_state', 'reward', 'state_action',  'acc_reward'))
+
+
+class Test():
+    def __init__(self, name, double_dqn=False, clip_reward=False) -> None:
+        self.name = name
+        self.loss_history = []
+        self.matches_history = []
+        self.double_dqn = double_dqn
+        self.clip_reward = clip_reward
 
 
 class Transition():

@@ -1,6 +1,6 @@
 import math
 import random
-import os
+import copy
 import pickle
 
 import torch
@@ -13,7 +13,7 @@ from framework.behaviour.BattlePolicies import RandomBattlePolicy
 from competitor.greedy.Greedy import GreedyBattlePolicy
 from framework.DataConstants import DEFAULT_N_ACTIONS, DEFAULT_PARTY_SIZE, DEFAULT_TEAM_SIZE, MAX_HIT_POINTS
 from RLStudies.Tester import build_random_teams
-from RLStudies.Utils import Transition, append_transitions_to_memory, build_state_representation, run_matches, run_episode
+from RLStudies.Utils import Test, Transition, append_transitions_to_memory, build_state_representation, run_matches, run_episode
 
 from framework.process.BattleEngine import PkmBattleEnv
 
@@ -79,9 +79,9 @@ class Net(nn.Module):
 
 
 class DQNTrainer():
-    def __init__(self, policy_net=None, e_greedy_decay=None, double_dqn=False, random_teams=True, fixed_teams=None, clip_reward=True) -> None:
-        self.policy_net = policy_net if policy_net else Net()
-        self.target_net = Net()
+    def __init__(self, e_greedy_decay=None, double_dqn=False, random_teams=True, fixed_teams=None, clip_reward=True) -> None:
+        self.policy_net = Net()
+        self.target_net = Net(target=True)
 
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.freeze_parameters()
@@ -103,6 +103,9 @@ class DQNTrainer():
 
         self.e_greedy_decay = e_greedy_decay
         self.clip_reward = clip_reward
+
+        self.loss_history = []
+        self.test_matches_history = []
 
     def select_action(self, state, episode=0, use_nn_value=False):
         sample = random.random()
@@ -133,9 +136,7 @@ class DQNTrainer():
             return lambda _, state_view: RANDOM_POLICY.get_action(state_view)
 
     def train(self, file_name="DQN"):
-        self.train_history = []
-
-        for i_episode in range(NUM_EPISODES):
+        for i_episode in range(NUM_EPISODES + 1):
             team0, team1 = self.get_teams()
             env = PkmBattleEnv(debug=True, teams=[team0, team1])
 
@@ -155,10 +156,12 @@ class DQNTrainer():
 
             self.memory = append_transitions_to_memory(episode_memory, self.memory)
 
+            self.loss_history.append((i_episode, self.current_loss))
+
             if i_episode > 0 and i_episode % TEST_EPISODE == 0:
                 print("Episode {} Current loss: {}".format(i_episode, self.current_loss))
                 _, matches_history = run_matches(custom_action_fn=self.select_action_wrapper(use_nn_value=True), custom_action_name="DQN", random_teams=self.random_teams, teams=[team0, team1])
-                self.train_history.append((i_episode, self.current_loss, matches_history))
+                self.test_matches_history.append((i_episode, matches_history))
 
         torch.save(self.policy_net.state_dict(), './RLStudies/saves/{}_final.pth'.format(file_name))
 
@@ -286,26 +289,22 @@ class EGreedyDecay():
 
 
 if __name__ == "__main__":
-    policy_net = Net()
-    teams = build_random_teams(2, 2)
-    with open('./RLStudies/teams/random_2_fixed_teams.pickle', 'wb') as handle:
-        pickle.dump(teams, handle)
-
-
-    Test = namedtuple('Test', ('name', 'double_dqn', 'clip_reward', 'history'))
+    teams = None
+    with open('./RLStudies/teams/random_2_fixed_teams.pickle', 'rb') as handle:
+        teams = pickle.load(handle)
 
     tests = [
-        Test('DQN_no_clip', False, False, []),
-        Test('DQN_with_clip', False, True, []),
-        Test('DDQN_no_clip', True, False, []),
-        Test('DDQN_with_clip', True, True, []),
+        Test(name='DQN_no_clip', double_dqn=False, clip_reward=False),
+        Test(name='DQN_with_clip', double_dqn=False, clip_reward=True),
+        Test(name='DDQN_no_clip', double_dqn=True, clip_reward=False),
+        Test(name='DDQN_with_clip', double_dqn=True, clip_reward=True),
     ]
 
     for test in tests:
+        dqn_agent = None
         print(test.name)
         print('=================')
         dqn_agent = DQNTrainer(
-            policy_net=policy_net,
             double_dqn=test.double_dqn,
             e_greedy_decay=EGreedyDecay.epsilon_linear_decay,
             random_teams=False,
@@ -313,6 +312,7 @@ if __name__ == "__main__":
             clip_reward=test.clip_reward
         )
         dqn_agent.train(file_name=test.name)
-        test.history.append(dqn_agent.train_history)
+        test.loss_history = copy.deepcopy(dqn_agent.loss_history)
+        test.matches_history = copy.deepcopy(dqn_agent.test_matches_history)
         with open('./RLStudies/results/{}.pickle'.format(test.name), 'wb') as handle:
             pickle.dump(test, handle)
